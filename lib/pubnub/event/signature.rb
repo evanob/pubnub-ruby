@@ -6,20 +6,24 @@ module Pubnub
     module Signature
       private
 
-      def super_admin_signature
+      def super_admin_signature(http_method, body = '')
         return unless @app.env[:secret_key]
 
         message = [
-          @app.env[:subscribe_key],
+          http_method,
           @app.env[:publish_key],
           path,
-          variables_for_signature.gsub(/[!~'()*]/) { |char| '%' + char.ord.to_s(16).upcase }, # Replace ! ~ * ' ( )
+          variables_for_signature.gsub(/[!~'()*]/) { |char| '%' + char.ord.to_s(16).upcase },
+          body
         ].join("\n")
 
-        URI.encode_www_form_component(Base64.encode64(
-          OpenSSL::HMAC.digest(OpenSSL::Digest.new('sha256'),
-                               @app.env[:secret_key].to_s, message)
-        ).strip).gsub('+', '%20')
+        signature = URI.encode_www_form_component(
+          Base64.encode64(
+            OpenSSL::HMAC.digest(OpenSSL::Digest.new('sha256'), @app.env[:secret_key].to_s, message)
+          ).strip
+        ).gsub('+', '%20')
+
+        "v2.#{signature}"
       end
 
       def variables_for_signature

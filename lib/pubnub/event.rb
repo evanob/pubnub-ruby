@@ -49,21 +49,18 @@ module Pubnub
       sender = request_dispatcher
       Pubnub.logger.debug('Pubnub::Event') { '#send_request got sender' }
 
+      signed_uri = uri(body: compressed_body)
+
       telemetry_time_start = ::Time.now.to_f
-      response = case @event
-                 when Pubnub::Constants::OPERATION_DELETE, Pubnub::Constants::OPERATION_DELETE_SPACE, Pubnub::Constants::OPERATION_DELETE_USER
-                   sender.delete(uri.to_s)
-                 when Pubnub::Constants::OPERATION_MANAGE_MEMBERS, Pubnub::Constants::OPERATION_MANAGE_MEMBERSHIPS,
-                      Pubnub::Constants::OPERATION_UPDATE_SPACE, Pubnub::Constants::OPERATION_UPDATE_USER
-                   sender.patch(uri.to_s, body: compressed_body)
-                 when Pubnub::Constants::OPERATION_CREATE_USER, Pubnub::Constants::OPERATION_CREATE_SPACE
-                   sender.post(uri.to_s, body: compressed_body)
+      response = case http_method(compressed_body)
+                 when 'DELETE'
+                   sender.delete(signed_uri.to_s)
+                 when 'PATCH'
+                   sender.patch(signed_uri.to_s, body: compressed_body)
+                 when 'POST'
+                   sender.post(signed_uri.to_s, body: compressed_body)
                  else
-                   if compressed_body.empty?
-                     sender.get(uri.to_s)
-                   else
-                     sender.post(uri.to_s, body: compressed_body)
-                   end
+                    sender.get(signed_uri.to_s)
                  end
 
       begin
@@ -78,13 +75,15 @@ module Pubnub
       error
     end
 
-    def uri(memo = true)
+    def uri(memo = true, body: '')
       unless is_a? SubscribeEvent
-        return @uri = uri(false) if memo
+        return @uri = uri(false, body: body) if memo
         return @uri if @uri
       end
 
-      sa_signature = super_admin_signature unless parameters.include?(:signature)
+      unless parameters.include?(:signature)
+        sa_signature = super_admin_signature(http_method(body), body)
+      end
 
       uri = @ssl ? 'https://' : 'http://'
       uri += @origin
@@ -93,6 +92,29 @@ module Pubnub
       uri += "&signature=#{sa_signature}" if sa_signature
       Pubnub.logger.debug('Pubnub::Event') { "Requested URI: #{uri}" }
       URI uri
+    end
+
+    def http_method(body)
+      case @event
+      when Pubnub::Constants::OPERATION_DELETE,
+          Pubnub::Constants::OPERATION_DELETE_SPACE,
+          Pubnub::Constants::OPERATION_DELETE_USER
+        'DELETE'
+      when Pubnub::Constants::OPERATION_MANAGE_MEMBERS,
+          Pubnub::Constants::OPERATION_MANAGE_MEMBERSHIPS,
+          Pubnub::Constants::OPERATION_UPDATE_SPACE,
+          Pubnub::Constants::OPERATION_UPDATE_USER
+        'PATCH'
+      when Pubnub::Constants::OPERATION_CREATE_USER,
+          Pubnub::Constants::OPERATION_CREATE_SPACE
+        'POST'
+      else
+        if body.empty?
+          'GET'
+        else
+          'POST'
+        end
+      end
     end
 
     def finalized?
