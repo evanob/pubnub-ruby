@@ -42,6 +42,8 @@ module Pubnub
         Pubnub::Constants::OPERATION_AUDIT
       when :grant
         Pubnub::Constants::OPERATION_GRANT
+      when :grant_token
+        Pubnub::Constants::OPERATION_GRANT_TOKEN
       when :revoke
         Pubnub::Constants::OPERATION_REVOKE
       end

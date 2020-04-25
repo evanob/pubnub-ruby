@@ -56,6 +56,7 @@ module Pubnub
     OPERATION_CHANNEL_GROUP_REMOVE = :channel_group_remove
     OPERATION_AUDIT = :audit
     OPERATION_GRANT = :grant
+    OPERATION_GRANT_TOKEN = :grant_token
     OPERATION_REVOKE = :revoke
     OPERATION_DELETE = :delete
     OPERATION_LIST_ALL_CHANNEL_GROUPS = :list_all_channel_groups

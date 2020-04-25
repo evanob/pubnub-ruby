@@ -58,7 +58,14 @@ module Pubnub
                  when 'PATCH'
                    sender.patch(signed_uri.to_s, body: compressed_body)
                  when 'POST'
-                   sender.post(signed_uri.to_s, body: compressed_body)
+                   if @event == Pubnub::Constants::OPERATION_GRANT_TOKEN
+                     sender.post(signed_uri.to_s, body: compressed_body, header: {
+                       'accept': 'application/json',
+                       'content-type': 'application/json',
+                     })
+                   else
+                     sender.post(signed_uri.to_s, body: compressed_body)
+                   end
                  else
                     sender.get(signed_uri.to_s)
                  end
@@ -106,7 +113,8 @@ module Pubnub
           Pubnub::Constants::OPERATION_UPDATE_USER
         'PATCH'
       when Pubnub::Constants::OPERATION_CREATE_USER,
-          Pubnub::Constants::OPERATION_CREATE_SPACE
+          Pubnub::Constants::OPERATION_CREATE_SPACE,
+          Pubnub::Constants::OPERATION_GRANT_TOKEN
         'POST'
       else
         if body.empty?
@@ -152,7 +160,7 @@ module Pubnub
 
       empty_if_blank[@telemetry_name] = nil if @app.env[:no_telemetry]
 
-      required[:timestamp] = @timestamp if @app.env[:secret_key] && !%i[grant revoke audit].include?(@event)
+      required[:timestamp] = @timestamp if @app.env[:secret_key] && !%i[grant grant_token revoke audit].include?(@event)
 
       empty_if_blank.delete_if { |_k, v| v.blank? }
       required.merge(empty_if_blank)
